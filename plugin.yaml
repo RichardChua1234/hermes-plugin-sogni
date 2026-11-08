@@ -1,0 +1,9 @@
+name: sogni
+version: "1.0.0"
+description: "Sogni AI image generation backend — text-to-image and image-to-image through the Sogni Creative Agent CLI on Sogni's decentralised GPU network (Krea 2 Turbo, Dark Beast KREA 2, identity-edit). Requires SOGNI_API_KEY and the separately installed sogni-agent CLI."
+author: Richard Chua
+kind: backend
+requires_hermes: ">=0.20.2"
+requires_env:
+  - SOGNI_API_KEY
+  - SOGNI_AGENT_BIN
