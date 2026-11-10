@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import subprocess
 from typing import Any, Dict, List, Optional
@@ -185,7 +186,7 @@ class SogniImageGenProvider(ImageGenProvider):
                 },
             ],
             "notes": "Requires the Sogni CLI: "
-                     "npm install -g @sogni-ai/sogni-creative-agent-skill",
+                     "npm install -g @sogni-ai/sogni-creative-agent-skill@3.56.1",
         }
 
     def default_model(self) -> Optional[str]:
@@ -198,6 +199,11 @@ class SogniImageGenProvider(ImageGenProvider):
             # Sogni bills per job in capacity units and the CLI reports the
             # cost after the fact; there is no honest upfront cap to advertise.
             "max_reference_images": 8,
+            "creative_controls": {
+                "count": {"type": "integer", "minimum": 1, "maximum": 4, "default": 1},
+                "seed": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+                "negative_prompt": {"type": "string"},
+            },
         }
 
     # ------------------------------------------------------------ generation
@@ -249,7 +255,7 @@ class SogniImageGenProvider(ImageGenProvider):
         if not cli:
             return error_response(
                 error="The Sogni CLI was not found. Install it with "
-                      "`npm install -g @sogni-ai/sogni-creative-agent-skill`, "
+                      "`npm install -g @sogni-ai/sogni-creative-agent-skill@3.56.1`, "
                       "or set SOGNI_AGENT_BIN to its full path.",
                 provider="sogni", model=model_id, prompt=prompt,
             )
@@ -287,9 +293,24 @@ class SogniImageGenProvider(ImageGenProvider):
         logger.info("sogni: %s %s %sx%s refs=%d",
                     model_id, spec["id"], width, height, len(refs))
 
+        # Minimal env: only what the CLI needs. Prevents leaking Hermes provider
+        # keys and ensures the resolved SOGNI_API_KEY is the one the CLI sees.
+        minimal_env = {
+            "PATH": os.environ.get("PATH", ""),
+            "HOME": os.environ.get("HOME", ""),
+            "LANG": os.environ.get("LANG", "C.UTF-8"),
+            "SOGNI_API_KEY": self._api_key(),
+        }
+        # The CLI may need these for Node/npm internals; pass through if present.
+        for k in ("NODE_OPTIONS", "NPM_CONFIG_PREFIX", "XDG_CACHE_HOME"):
+            v = os.environ.get(k)
+            if v:
+                minimal_env[k] = v
+
         try:
             proc = subprocess.run(
                 argv, capture_output=True, text=True, timeout=CLI_TIMEOUT,
+                env=minimal_env,
             )
         except Exception as exc:                                   # noqa: BLE001
             return error_response(

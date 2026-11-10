@@ -30,7 +30,7 @@ closes that gap.
    protocol:
 
    ```bash
-   npm install -g @sogni-ai/sogni-creative-agent-skill
+   npm install -g @sogni-ai/sogni-creative-agent-skill@3.56.1
    sogni-agent-hermes --version
    ```
 
